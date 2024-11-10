@@ -68,7 +68,7 @@ extension ApphudInternal {
         let upgrade = transaction.isUpgraded
         let productID = transaction.productID
 
-        let transactions = self.lastUploadedTransactions
+        let transactions = await self.lastUploadedTransactions
 
         if transactions.contains(transactionId) {
             return false
@@ -108,10 +108,10 @@ extension ApphudInternal {
                                            transactionProductIdentifier: productID,
                                            transactionState: isRecentlyPurchased ? .purchased : nil,
                                            receiptString: receipt,
-                                           notifyDelegate: true) { _ in }
+                                                 notifyDelegate: true) { _ in
+                            continuation.resume(returning: true)
+                        }
                     }
-                    
-                    continuation.resume(returning: true)
                 }
             }
         }
@@ -256,11 +256,13 @@ extension ApphudInternal {
                                 eligibilityCheck: Bool = false,
                                 callback: ApphudNSErrorCallback?) async {
 
-        if callback != nil {
-            if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
-                self.submitReceiptCallbacks.append(callback)
-            } else {
-                self.submitReceiptCallbacks = [callback]
+        await MainActor.run {
+            if callback != nil {
+                if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
+                    self.submitReceiptCallbacks.append(callback)
+                } else {
+                    self.submitReceiptCallbacks = [callback]
+                }
             }
         }
 
@@ -318,7 +320,7 @@ extension ApphudInternal {
                 if params["placement_id"] == nil && placement != nil {
                     params["placement_id"] = placement?.id
                 }
-                paywall = placement?.paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
+                paywall = placement?.paywalls.first
             } else {
                 paywall = await paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
             }
@@ -343,10 +345,13 @@ extension ApphudInternal {
             }
         #endif
         
-        if let transactionId = params["transaction_id"] as? String, let trInt = UInt64(transactionId) {
-            var trx = self.lastUploadedTransactions
-            trx.append(trInt)
-            self.lastUploadedTransactions = trx
+        let transactionId = params["transaction_id"] as? String
+        await MainActor.run {
+            if transactionId != nil, let trInt = UInt64(transactionId!) {
+                var trx = self.lastUploadedTransactions
+                trx.append(trInt)
+                self.lastUploadedTransactions = trx
+            }
         }
         
         self.requiresReceiptSubmission = true
