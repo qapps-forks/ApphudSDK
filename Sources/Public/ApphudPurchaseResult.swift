@@ -39,8 +39,20 @@ public class ApphudPurchaseResult: NSObject {
      */
     @objc public let error: Error?
 
+    /**
+     Indicates whether the purchase result was triggered by a restore action.
+    */
+    public var isRestoreResult: Bool = false
+
     public var success: Bool {
-        error == nil
+        error == nil && (subscription?.isActive() ?? false || nonRenewingPurchase?.isActive() ?? false)
+    }
+    
+    /**
+     Indicates whether the payment was cancelled by user.
+    */
+    public var userCanceled: Bool {
+        (error as? SKError)?.code == .paymentCancelled
     }
 
     // MARK: - Private methods
@@ -60,6 +72,7 @@ public class ApphudPurchaseResult: NSObject {
         \nsubscription status = \( subscription != nil ? subscription!.isActive().description : "nil")
         \nnon renewing purchase status = \( nonRenewingPurchase != nil ? nonRenewingPurchase!.isActive().description : "nil")
         \nerror = \(error?.localizedDescription ?? "nil")
+        \nuserCanceled = \(userCanceled)
         """
     }
 }
